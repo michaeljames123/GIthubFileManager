@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud-Based Notepad</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #2a3d67, #b5c0d1);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .notepad-container {
+            background: #fff;
+            width: 600px;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+
+        .notepad-container:hover {
+            transform: scale(1.05);
+        }
+
+        h2 {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 25px;
+            font-size: 28px;
+            letter-spacing: 1px;
+        }
+
+        .textarea-container {
+            width: 100%;
+            height: 300px;
+            margin-bottom: 30px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 100%;
+            padding: 20px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            color: #333;
+            background: #f7f7f7;
+            font-family: 'Roboto', sans-serif;
+            outline: none;
+            resize: none;
+            box-sizing: border-box;
+            transition: background-color 0.3s ease;
+        }
+
+        textarea:focus {
+            background-color: #eef2f7;
+        }
+
+        .button-container {
+            display: flex;
+            justify-content: space-between;
+            gap: 15px;
+        }
+
+        .btn {
+            background-color: #6c5ce7;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            color: white;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            width: 30%;
+        }
+
+        .btn:hover {
+            background-color: #a29bfe;
+        }
+
+        .btn:disabled {
+            background-color: #dfe6e9;
+            cursor: not-allowed;
+        }
+
+        .status-message {
+            margin-top: 20px;
+            color: #2d3436;
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .status-message.success {
+            color: #2ecc71;
+        }
+
+        .status-message.error {
+            color: #e74c3c;
+        }
+    </style>
+</head>
+<body>
+    <div class="notepad-container">
+        <h2>Cloud-Based Notepad</h2>
+        <div class="textarea-container">
+            <textarea id="textArea" placeholder="Start writing your notes..."></textarea>
+        </div>
+
+        <div>
+            <input type="text" id="fileName" placeholder="Enter file name (e.g., notes.txt)" />
+        </div>
+
+        <div class="button-container">
+            <button id="loadBtn" class="btn" onclick="loadText()">Load File</button>
+            <button id="saveBtn" class="btn" onclick="saveText()">Save File</button>
+            <button id="clearBtn" class="btn" onclick="clearText()">Clear Text</button>
+        </div>
+
+        <div id="statusMessage" class="status-message"></div>
+    </div>
+
+    <script>
+        const textArea = document.getElementById("textArea");
+        const statusMessage = document.getElementById("statusMessage");
+        const fileNameInput = document.getElementById("fileName");
+
+        // GitHub API settings
+        const owner = "michaeljames123"; // Your GitHub username
+        const repo = "GIthubFileManager"; // Your GitHub repo name
+        const branch = "M main";
+        const token = "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"; // Your GitHub token
+        const headers = {
+            "Authorization": `token ${token}`,
+            "Accept": "application/vnd.github.v3+json",
+            "Content-Type": "application/json"
+        };
+
+        // Load file from GitHub repository
+        function loadText() {
+            const fileName = fileNameInput.value.trim();
+            if (!fileName) {
+                statusMessage.textContent = "Please enter a file name.";
+                statusMessage.classList.add("error");
+                return;
+            }
+            statusMessage.textContent = "";
+
+            fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${fileName}`, {
+                method: "GET",
+                headers: headers
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.content) {
+                    const decodedContent = atob(data.content); // Decode Base64
+                    textArea.value = decodedContent;
+                    statusMessage.textContent = "File loaded successfully!";
+                    statusMessage.classList.add("success");
+                    statusMessage.classList.remove("error");
+                } else {
+                    throw new Error("No content found or file does not exist");
+                }
+            })
+            .catch(error => {
+                statusMessage.textContent = `Error: ${error.message}`;
+                statusMessage.classList.add("error");
+                statusMessage.classList.remove("success");
+            });
+        }
+
+        // Save text to GitHub repository
+        function saveText() {
+            const textContent = textArea.value;
+            const fileName = fileNameInput.value.trim();
+            if (!fileName) {
+                statusMessage.textContent = "Please enter a file name.";
+                statusMessage.classList.add("error");
+                return;
+            }
+            if (textContent.trim() === "") {
+                statusMessage.textContent = "Cannot save empty text.";
+                statusMessage.classList.add("error");
+                return;
+            }
+
+            const encodedContent = btoa(textContent); // Encode content in Base64
+            const data = {
+                message: "Update " + fileName, // Commit message
+                content: encodedContent, // Base64 content
+                branch: "main" // Ensure to specify the correct branch
+            };
+
+            fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${fileName}`, {
+                method: "PUT",
+                headers: headers,
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(() => {
+                statusMessage.textContent = "File saved successfully!";
+                statusMessage.classList.add("success");
+                statusMessage.classList.remove("error");
+            })
+            .catch(error => {
+                statusMessage.textContent = `Error: ${error.message}`;
+                statusMessage.classList.add("error");
+                statusMessage.classList.remove("success");
+            });
+        }
+
+        // Clear text area
+        function clearText() {
+            textArea.value = "";
+            statusMessage.textContent = "Text area cleared!";
+            statusMessage.classList.add("error");
+            statusMessage.classList.remove("success");
+        }
+    </script>
+</body>
+</html>
